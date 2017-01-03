@@ -63,17 +63,19 @@ void readTemperature()
 void updateDisplay()
 {
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB14_tr);
+  u8g2.setFont(u8g2_font_profont12_tf);
   
-  u8g2.setCursor(0, 20);
+  u8g2.setCursor(0, 10);
   u8g2.print("T: ");
   u8g2.print(temperatureEvent.temperature);
-  u8g2.print(" *C");
+  u8g2.print("C / ");
+  u8g2.print(temperatureEvent.temperature * 1.8 + 32);
+  u8g2.print("F");
 
-  u8g2.setCursor(0, 40);
+  u8g2.setCursor(0, 20);
   u8g2.print("H: ");
   u8g2.print(humidityEvent.relative_humidity);
-  u8g2.print(" %");
+  u8g2.print("%");
   
   u8g2.sendBuffer();
 }
