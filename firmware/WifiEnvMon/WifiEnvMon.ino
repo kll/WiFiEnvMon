@@ -1,5 +1,5 @@
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
-#include <ArduinoJson.h>
+#include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
 
 #include <Arduino.h>
 
@@ -15,25 +15,39 @@
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
+#include <Adafruit_MQTT.h>
+#include <Adafruit_MQTT_Client.h>
+
 #include "Config.h"
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 DHT_Unified dht(DHTPIN, DHTTYPE);
 
 // default values that are overwritten if there are different values in config.json
-char mqtt_username[50] = "YOUR_USERNAME";
-char mqtt_key[50] = "YOUR_API_KEY";
-char sensor_name[50] = "UNIQUE_NAME_FOR_SENSOR";
-char mqtt_server[50] = "io.adafruit.com";
-char mqtt_port[6] = "1883";
+String mqtt_username = "YOUR_USERNAME";
+String mqtt_key = "YOUR_API_KEY";
+String sensor_name = "UNIQUE_NAME_FOR_SENSOR";
+String mqtt_server = "io.adafruit.com";
+uint16_t mqtt_port = 1883;
+
+String celciusFeed;
+String fahrenheitFeed;
+String humidityFeed;
 
 // flag for saving data
 bool shouldSaveConfig = false;
 
 unsigned long lastUpdate;
-uint32_t dhtDelayMS;
 sensors_event_t humidityEvent;
 sensors_event_t temperatureEvent;
+
+// for mqtt library
+void MQTT_connect();
+WiFiClient client;
+Adafruit_MQTT_Client* mqtt;
+Adafruit_MQTT_Publish* celciusPublish;
+Adafruit_MQTT_Publish* fahrenheitPublish;
+Adafruit_MQTT_Publish* humidityPublish;
 
 void saveConfigCallback()
 {
@@ -53,12 +67,12 @@ void setup()
 
   readConfig();
   initWiFi();
-  initDhtDelay();
+  initMqtt();
 }
 
 void loop()
 {
-  if ((millis() - lastUpdate) < dhtDelayMS)
+  if ((millis() - lastUpdate) < INTERVAL)
   {
     return;
   }
@@ -67,6 +81,40 @@ void loop()
 
   readSensors();
   updateDisplay();
+
+  MQTT_connect();
+  publishData();
+}
+
+void MQTT_connect()
+{
+  int8_t ret;
+
+  // Stop if already connected.
+  if (mqtt->connected())
+  {
+    return;
+  }
+
+  DEBUG_PRINTLN(F("Connecting to MQTT... "));
+
+  uint8_t retries = 3;
+  while ((ret = mqtt->connect()) != 0)
+  {
+    // connect will return 0 for connected
+    DEBUG_PRINTLN(mqtt->connectErrorString(ret));
+    DEBUG_PRINTLN(F("Retrying MQTT connection in 5 seconds..."));
+    mqtt->disconnect();
+    delay(5000);
+    retries--;
+    if (retries == 0)
+    {
+      // basically die and wait for WDT to reset me
+      while (1);
+    }
+  }
+  
+  DEBUG_PRINTLN(F("MQTT Connected!"));
 }
 
 void readConfig()
@@ -106,11 +154,15 @@ void readConfig()
         {
           DEBUG_PRINTLN(F("\nparsed json"));
 
-          strcpy(sensor_name, json["sensor_name"]);
-          strcpy(mqtt_username, json["mqtt_username"]);
-          strcpy(mqtt_key, json["mqtt_key"]);
-          strcpy(mqtt_server, json["mqtt_server"]);
-          strcpy(mqtt_port, json["mqtt_port"]);
+          sensor_name = json["sensor_name"].as<String>();
+          mqtt_username = json["mqtt_username"].as<String>();
+          mqtt_key = json["mqtt_key"].as<String>();
+          mqtt_server = json["mqtt_server"].as<String>();
+          mqtt_port = json["mqtt_port"].as<uint16_t>();
+
+          celciusFeed = mqtt_username + "/feeds/" + sensor_name + "_celcius";
+          fahrenheitFeed = mqtt_username + "/feeds/" + sensor_name + "_fahrenheit";
+          humidityFeed = mqtt_username + "/feeds/" + sensor_name + "_humidity";
 
           DEBUG_PRINTLN(F("setings copied from json"));
         }
@@ -160,11 +212,12 @@ void initWiFi()
 {
   DEBUG_PRINTLN(F("initializing WiFi..."));
   
-  WiFiManagerParameter custom_sensor_name("name", "sensor name", sensor_name, 50);
-  WiFiManagerParameter custom_mqtt_username("username", mqtt_username, mqtt_username, 50);
-  WiFiManagerParameter custom_mqtt_key("key", mqtt_key, mqtt_key, 50);
-  WiFiManagerParameter custom_mqtt_server("server", mqtt_server, mqtt_server, 50);
-  WiFiManagerParameter custom_mqtt_port("port", mqtt_port, mqtt_port, 6);
+  WiFiManagerParameter custom_sensor_name("name", "sensor name", sensor_name.c_str(), 50);
+  WiFiManagerParameter custom_mqtt_username("username", "MQTT username", mqtt_username.c_str(), 50);
+  WiFiManagerParameter custom_mqtt_key("key", "MQTT API key", mqtt_key.c_str(), 50);
+  WiFiManagerParameter custom_mqtt_server("server", "MQTT server", mqtt_server.c_str(), 50);
+  char portBuffer[8];
+  WiFiManagerParameter custom_mqtt_port("port", "MQTT port", itoa(mqtt_port, portBuffer, 10), 6);
   
   WiFiManager wifiManager;
   wifiManager.setSaveConfigCallback(saveConfigCallback);
@@ -190,11 +243,11 @@ void initWiFi()
   DEBUG_PRINTLN(WiFi.localIP());
 
   // read updated parameters
-  strcpy(sensor_name, custom_sensor_name.getValue());
-  strcpy(mqtt_username, custom_mqtt_username.getValue());
-  strcpy(mqtt_key, custom_mqtt_key.getValue());
-  strcpy(mqtt_server, custom_mqtt_server.getValue());
-  strcpy(mqtt_port, custom_mqtt_port.getValue());
+  sensor_name = String(custom_sensor_name.getValue());
+  mqtt_username = String(custom_mqtt_username.getValue());
+  mqtt_key = String(custom_mqtt_key.getValue());
+  mqtt_server = String(custom_mqtt_server.getValue());
+  mqtt_port = atoi(custom_mqtt_port.getValue());
   
   // save the custom parameters to FS
   if (shouldSaveConfig)
@@ -203,13 +256,13 @@ void initWiFi()
   }
 }
 
-void initDhtDelay()
+void initMqtt()
 {
-  DEBUG_PRINTLN(F("Reading required delay for DHT sensor."));
-  
-  sensor_t sensor;
-  dht.humidity().getSensor(&sensor);
-  dhtDelayMS = sensor.min_delay / 1000;
+  DEBUG_PRINTLN(F("initializing MQTT client..."));
+  mqtt = new Adafruit_MQTT_Client(&client, mqtt_server.c_str(), mqtt_port, mqtt_username.c_str(), mqtt_key.c_str());
+  celciusPublish = new Adafruit_MQTT_Publish(mqtt, celciusFeed.c_str());
+  fahrenheitPublish = new Adafruit_MQTT_Publish(mqtt, fahrenheitFeed.c_str());
+  humidityPublish = new Adafruit_MQTT_Publish(mqtt, humidityFeed.c_str());
 }
 
 void readSensors()
@@ -268,5 +321,29 @@ void updateDisplay()
   u8g2.print(WiFi.localIP());
   
   u8g2.sendBuffer();
+}
+
+void publishData()
+{
+  if (!isnan(temperatureEvent.temperature))
+  {
+    if (!celciusPublish->publish(temperatureEvent.temperature))
+      DEBUG_PRINTLN(F("Failed to publish celcius"));
+    else
+      DEBUG_PRINTLN(F("Celcius published!"));
+
+    if (!fahrenheitPublish->publish(temperatureEvent.temperature * 1.8 + 32))
+      DEBUG_PRINTLN(F("Failed to publish fahrenheit"));
+    else
+      DEBUG_PRINTLN(F("Fahrenheit published!"));
+  }
+
+  if (!isnan(humidityEvent.relative_humidity))
+  {
+    if (!humidityPublish->publish(humidityEvent.relative_humidity))
+      DEBUG_PRINTLN(F("Failed to publish humidity"));
+    else
+      DEBUG_PRINTLN(F("Humidity published!"));
+  }
 }
 
