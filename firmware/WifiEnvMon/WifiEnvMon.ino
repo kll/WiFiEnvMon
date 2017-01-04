@@ -77,15 +77,29 @@ void updateDisplay()
   
   u8g2.setCursor(0, 10);
   u8g2.print("T : ");
-  u8g2.print(temperatureEvent.temperature);
-  u8g2.print("C / ");
-  u8g2.print(temperatureEvent.temperature * 1.8 + 32);
-  u8g2.print("F");
-
+  if (isnan(temperatureEvent.temperature))
+  {
+    u8g2.print("ERROR");
+  }
+  else
+  {
+    u8g2.print(temperatureEvent.temperature);
+    u8g2.print("C / ");
+    u8g2.print(temperatureEvent.temperature * 1.8 + 32);
+    u8g2.print("F");
+  }
+  
   u8g2.setCursor(0, 20);
   u8g2.print("H : ");
-  u8g2.print(humidityEvent.relative_humidity);
-  u8g2.print("%");
+  if (isnan(humidityEvent.relative_humidity))
+  {
+    u8g2.print("ERROR");
+  }
+  else
+  {
+    u8g2.print(humidityEvent.relative_humidity);
+    u8g2.print("%");
+  }
 
   u8g2.setCursor(0, 30);
   u8g2.print("IP: ");
