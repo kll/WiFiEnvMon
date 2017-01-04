@@ -12,8 +12,7 @@
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
-#define DHTPIN    0
-#define DHTTYPE   DHT22 // options: DHT11 DHT21 DHT22
+#include "Config.h"
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 DHT_Unified dht(DHTPIN, DHTTYPE);
@@ -25,6 +24,12 @@ sensors_event_t temperatureEvent;
 
 void setup()
 {
+  #ifdef DEBUGP
+    Serial.begin(115200);
+  #endif
+
+  DEBUG_PRINTLN(F("In setup"));
+  
   u8g2.begin();
   dht.begin();
 
@@ -49,6 +54,7 @@ void loop()
 
 void initDhtDelay()
 {
+  DEBUG_PRINTLN(F("Reading required delay for DHT sensor."));
   sensor_t sensor;
   dht.humidity().getSensor(&sensor);
   dhtDelayMS = sensor.min_delay / 1000;
