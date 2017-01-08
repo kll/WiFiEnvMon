@@ -12,14 +12,18 @@
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
+#include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <Adafruit_TSL2561_U.h>
+
 #include <Adafruit_MQTT.h>
 #include <Adafruit_MQTT_Client.h>
 
 #include "Config.h"
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-Adafruit_BME280 bme; // I2C
+Adafruit_BME280 bme;
+Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT);
 
 // default values that are overwritten if there are different values in config.json
 String mqtt_username = "YOUR_USERNAME";
@@ -33,6 +37,7 @@ String fahrenheitFeed;
 String humidityFeed;
 String pressureFeed;
 String airQualityFeed;
+String lightFeed;
 
 // flag for saving data
 bool shouldSaveConfig = false;
@@ -42,6 +47,7 @@ float temperature;
 float pressure;
 float humidity;
 int airQuality;
+sensors_event_t lightEvent;
 
 // for mqtt library
 void MQTT_connect();
@@ -52,6 +58,7 @@ Adafruit_MQTT_Publish* fahrenheitPublish;
 Adafruit_MQTT_Publish* humidityPublish;
 Adafruit_MQTT_Publish* pressurePublish;
 Adafruit_MQTT_Publish* airQualityPublish;
+Adafruit_MQTT_Publish* lightPublish;
 
 void saveConfigCallback()
 {
@@ -70,12 +77,18 @@ void setup()
 
   if (!bme.begin(0x76))
   {
-    DEBUG_PRINTLN(F("Could not find a valid BME280 sensor, check wiring!"));
+    DEBUG_PRINTLN(F("Could not find a valid BME280 sensor!"));
+  }
+
+  if (!tsl.begin())
+  {
+    DEBUG_PRINTLN(F("Could not find a valid TSL2561 sensor!"));
   }
 
   readConfig();
   initWiFi();
   initMqtt();
+  initLightSensor();
 }
 
 void loop()
@@ -173,6 +186,7 @@ void readConfig()
           humidityFeed = mqtt_username + "/feeds/" + sensor_name + "_humidity";
           pressureFeed = mqtt_username + "/feeds/" + sensor_name + "_pressure_hpa";
           airQualityFeed = mqtt_username + "/feeds/" + sensor_name + "_airquality";
+          lightFeed = mqtt_username + "/feeds/" + sensor_name + "_light_lux";
 
           DEBUG_PRINTLN(F("setings copied from json"));
         }
@@ -275,6 +289,20 @@ void initMqtt()
   humidityPublish = new Adafruit_MQTT_Publish(mqtt, humidityFeed.c_str());
   pressurePublish = new Adafruit_MQTT_Publish(mqtt, pressureFeed.c_str());
   airQualityPublish = new Adafruit_MQTT_Publish(mqtt, airQualityFeed.c_str());
+  lightPublish = new Adafruit_MQTT_Publish(mqtt, lightFeed.c_str());
+}
+
+void initLightSensor()
+{
+  // You can also manually set the gain or enable auto-gain support
+  //tsl.setGain(TSL2561_GAIN_1X);   // No gain ... use in bright light to avoid sensor saturation
+  //tsl.setGain(TSL2561_GAIN_16X);  // 16x gain ... use in low light to boost sensitivity
+  tsl.enableAutoRange(true);        // Auto-gain ... switches automatically between 1x and 16x
+  
+  // Changing the integration time gives you better sensor resolution (402ms = 16-bit data)
+  //tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);   // fast but low resolution
+  //tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_101MS);  // medium resolution and speed
+  tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);    // 16-bit data but slowest conversions
 }
 
 void readSensors()
@@ -283,6 +311,7 @@ void readSensors()
   readTemperature();
   readPressure();
   readAirQuality();
+  readLight();
 }
 
 void readAirQuality()
@@ -311,6 +340,21 @@ void readTemperature()
 void readPressure()
 {
   pressure = bme.readPressure() / 100.0F;
+}
+
+void readLight()
+{
+  tsl.getEvent(&lightEvent);
+
+  DEBUG_PRINT(F("Light lux: "));
+  if (lightEvent.light)
+  {
+    DEBUG_PRINTLN(lightEvent.light);
+  }
+  else
+  {
+    DEBUG_PRINTLN(F("ERROR"));
+  }
 }
 
 void updateDisplay()
@@ -367,12 +411,21 @@ void updateDisplay()
     u8g2.print(airQuality);
   }
 
-  u8g2.setCursor(0, 54);
-  u8g2.print("N : ");
-  u8g2.print(sensor_name);
-  
+  u8g2.setCursor(0, 50);
+  u8g2.print("LT: ");
+  if (isnan(lightEvent.light))
+  {
+    u8g2.print("ERROR");
+  }
+  else
+  {
+    u8g2.print(lightEvent.light);
+    u8g2.print(" lux");
+  }
+
   u8g2.setCursor(0, 64);
-  u8g2.print("IP: ");
+  u8g2.print(sensor_name);
+  u8g2.print(" ");
   u8g2.print(WiFi.localIP());
   
   u8g2.sendBuffer();
@@ -414,6 +467,14 @@ void publishData()
     if (!airQualityPublish->publish(airQuality))
     {
       DEBUG_PRINTLN(F("Failed to publish air quality"));
+    }
+  }
+
+  if (!isnan(lightEvent.light))
+  {
+    if (!lightPublish->publish(lightEvent.light))
+    {
+      DEBUG_PRINTLN(F("Failed to publish light"));
     }
   }
 }
