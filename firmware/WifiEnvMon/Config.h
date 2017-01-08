@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #define BMEOFFSET -1.5
+#define MICSPIN A0
 
 #define INTERVAL  10000
 

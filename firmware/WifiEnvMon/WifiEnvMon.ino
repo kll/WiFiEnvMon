@@ -32,6 +32,7 @@ String celciusFeed;
 String fahrenheitFeed;
 String humidityFeed;
 String pressureFeed;
+String airQualityFeed;
 
 // flag for saving data
 bool shouldSaveConfig = false;
@@ -40,6 +41,7 @@ unsigned long lastUpdate;
 float temperature;
 float pressure;
 float humidity;
+int airQuality;
 
 // for mqtt library
 void MQTT_connect();
@@ -49,6 +51,7 @@ Adafruit_MQTT_Publish* celciusPublish;
 Adafruit_MQTT_Publish* fahrenheitPublish;
 Adafruit_MQTT_Publish* humidityPublish;
 Adafruit_MQTT_Publish* pressurePublish;
+Adafruit_MQTT_Publish* airQualityPublish;
 
 void saveConfigCallback()
 {
@@ -169,6 +172,7 @@ void readConfig()
           fahrenheitFeed = mqtt_username + "/feeds/" + sensor_name + "_fahrenheit";
           humidityFeed = mqtt_username + "/feeds/" + sensor_name + "_humidity";
           pressureFeed = mqtt_username + "/feeds/" + sensor_name + "_pressure_hpa";
+          airQualityFeed = mqtt_username + "/feeds/" + sensor_name + "_airquality";
 
           DEBUG_PRINTLN(F("setings copied from json"));
         }
@@ -270,6 +274,7 @@ void initMqtt()
   fahrenheitPublish = new Adafruit_MQTT_Publish(mqtt, fahrenheitFeed.c_str());
   humidityPublish = new Adafruit_MQTT_Publish(mqtt, humidityFeed.c_str());
   pressurePublish = new Adafruit_MQTT_Publish(mqtt, pressureFeed.c_str());
+  airQualityPublish = new Adafruit_MQTT_Publish(mqtt, airQualityFeed.c_str());
 }
 
 void readSensors()
@@ -277,6 +282,14 @@ void readSensors()
   readHumidity();
   readTemperature();
   readPressure();
+  readAirQuality();
+}
+
+void readAirQuality()
+{
+  airQuality = analogRead(MICSPIN);
+  DEBUG_PRINT(F("Air Quality: "));
+  DEBUG_PRINTLN(airQuality);
 }
 
 void readHumidity()
@@ -343,6 +356,17 @@ void updateDisplay()
     u8g2.print("hPa");
   }
 
+  u8g2.setCursor(0, 40);
+  u8g2.print("AQ: ");
+  if (isnan(airQuality))
+  {
+    u8g2.print("ERROR");
+  }
+  else
+  {
+    u8g2.print(airQuality);
+  }
+
   u8g2.setCursor(0, 54);
   u8g2.print("N : ");
   u8g2.print(sensor_name);
@@ -359,30 +383,38 @@ void publishData()
   if (!isnan(temperature))
   {
     if (!celciusPublish->publish(temperature))
+    {
       DEBUG_PRINTLN(F("Failed to publish celcius"));
-    else
-      DEBUG_PRINTLN(F("Celcius published!"));
+    }
 
     if (!fahrenheitPublish->publish(convertToFahrenheight(temperature)))
+    {
       DEBUG_PRINTLN(F("Failed to publish fahrenheit"));
-    else
-      DEBUG_PRINTLN(F("Fahrenheit published!"));
+    }
   }
 
   if (!isnan(humidity))
   {
     if (!humidityPublish->publish(humidity))
+    {
       DEBUG_PRINTLN(F("Failed to publish humidity"));
-    else
-      DEBUG_PRINTLN(F("Humidity published!"));
+    }
   }
 
   if (!isnan(pressure))
   {
     if (!pressurePublish->publish(pressure))
+    {
       DEBUG_PRINTLN(F("Failed to publish pressure"));
-    else
-      DEBUG_PRINTLN(F("Pressure published!"));
+    }
+  }
+
+  if (!isnan(airQuality))
+  {
+    if (!airQualityPublish->publish(airQuality))
+    {
+      DEBUG_PRINTLN(F("Failed to publish air quality"));
+    }
   }
 }
 
