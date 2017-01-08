@@ -1,8 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define DHTPIN    0
-#define DHTTYPE   DHT22 // options: DHT11 DHT21 DHT22
+#define BMEOFFSET -1.5
 
 #define INTERVAL  10000
 

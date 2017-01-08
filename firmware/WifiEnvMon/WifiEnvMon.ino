@@ -2,26 +2,24 @@
 #include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
 
 #include <Arduino.h>
+#include <math.h>
 
 #include <Wire.h>
 #include <U8g2lib.h>
-
-#include <Adafruit_Sensor.h>
-#include <DHT.h>
-#include <DHT_U.h>
 
 #include <ESP8266WiFi.h>          // ESP8266 Core WiFi Library
 #include <DNSServer.h>            // Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
+#include <Adafruit_BME280.h>
 #include <Adafruit_MQTT.h>
 #include <Adafruit_MQTT_Client.h>
 
 #include "Config.h"
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-DHT_Unified dht(DHTPIN, DHTTYPE);
+Adafruit_BME280 bme; // I2C
 
 // default values that are overwritten if there are different values in config.json
 String mqtt_username = "YOUR_USERNAME";
@@ -33,13 +31,15 @@ uint16_t mqtt_port = 1883;
 String celciusFeed;
 String fahrenheitFeed;
 String humidityFeed;
+String pressureFeed;
 
 // flag for saving data
 bool shouldSaveConfig = false;
 
 unsigned long lastUpdate;
-sensors_event_t humidityEvent;
-sensors_event_t temperatureEvent;
+float temperature;
+float pressure;
+float humidity;
 
 // for mqtt library
 void MQTT_connect();
@@ -48,6 +48,7 @@ Adafruit_MQTT_Client* mqtt;
 Adafruit_MQTT_Publish* celciusPublish;
 Adafruit_MQTT_Publish* fahrenheitPublish;
 Adafruit_MQTT_Publish* humidityPublish;
+Adafruit_MQTT_Publish* pressurePublish;
 
 void saveConfigCallback()
 {
@@ -63,7 +64,11 @@ void setup()
   #endif
 
   u8g2.begin();
-  dht.begin();
+
+  if (!bme.begin(0x76))
+  {
+    DEBUG_PRINTLN(F("Could not find a valid BME280 sensor, check wiring!"));
+  }
 
   readConfig();
   initWiFi();
@@ -163,6 +168,7 @@ void readConfig()
           celciusFeed = mqtt_username + "/feeds/" + sensor_name + "_celcius";
           fahrenheitFeed = mqtt_username + "/feeds/" + sensor_name + "_fahrenheit";
           humidityFeed = mqtt_username + "/feeds/" + sensor_name + "_humidity";
+          pressureFeed = mqtt_username + "/feeds/" + sensor_name + "_pressure_hpa";
 
           DEBUG_PRINTLN(F("setings copied from json"));
         }
@@ -263,22 +269,35 @@ void initMqtt()
   celciusPublish = new Adafruit_MQTT_Publish(mqtt, celciusFeed.c_str());
   fahrenheitPublish = new Adafruit_MQTT_Publish(mqtt, fahrenheitFeed.c_str());
   humidityPublish = new Adafruit_MQTT_Publish(mqtt, humidityFeed.c_str());
+  pressurePublish = new Adafruit_MQTT_Publish(mqtt, pressureFeed.c_str());
 }
 
 void readSensors()
 {
   readHumidity();
   readTemperature();
+  readPressure();
 }
 
 void readHumidity()
 {
-  dht.humidity().getEvent(&humidityEvent);
+  humidity = bme.readHumidity();
 }
 
 void readTemperature()
 {
-  dht.temperature().getEvent(&temperatureEvent);
+  temperature = bme.readTemperature();
+
+  // apply configured offset
+  if (!isnan(temperature))
+  {
+    temperature += BMEOFFSET;
+  }
+}
+
+void readPressure()
+{
+  pressure = bme.readPressure() / 100.0F;
 }
 
 void updateDisplay()
@@ -288,28 +307,40 @@ void updateDisplay()
   
   u8g2.setCursor(0, 10);
   u8g2.print("T : ");
-  if (isnan(temperatureEvent.temperature))
+  if (isnan(temperature))
   {
     u8g2.print("ERROR");
   }
   else
   {
-    u8g2.print(temperatureEvent.temperature);
+    u8g2.print(temperature, 2);
     u8g2.print("C / ");
-    u8g2.print(temperatureEvent.temperature * 1.8 + 32);
+    u8g2.print(convertToFahrenheight(temperature), 2);
     u8g2.print("F");
   }
   
   u8g2.setCursor(0, 20);
   u8g2.print("H : ");
-  if (isnan(humidityEvent.relative_humidity))
+  if (isnan(humidity))
   {
     u8g2.print("ERROR");
   }
   else
   {
-    u8g2.print(humidityEvent.relative_humidity);
+    u8g2.print(humidity);
     u8g2.print("%");
+  }
+
+  u8g2.setCursor(0, 30);
+  u8g2.print("P : ");
+  if (isnan(pressure))
+  {
+    u8g2.print("ERROR");
+  }
+  else
+  {
+    u8g2.print(pressure);
+    u8g2.print("hPa");
   }
 
   u8g2.setCursor(0, 54);
@@ -325,25 +356,39 @@ void updateDisplay()
 
 void publishData()
 {
-  if (!isnan(temperatureEvent.temperature))
+  if (!isnan(temperature))
   {
-    if (!celciusPublish->publish(temperatureEvent.temperature))
+    if (!celciusPublish->publish(temperature))
       DEBUG_PRINTLN(F("Failed to publish celcius"));
     else
       DEBUG_PRINTLN(F("Celcius published!"));
 
-    if (!fahrenheitPublish->publish(temperatureEvent.temperature * 1.8 + 32))
+    if (!fahrenheitPublish->publish(convertToFahrenheight(temperature)))
       DEBUG_PRINTLN(F("Failed to publish fahrenheit"));
     else
       DEBUG_PRINTLN(F("Fahrenheit published!"));
   }
 
-  if (!isnan(humidityEvent.relative_humidity))
+  if (!isnan(humidity))
   {
-    if (!humidityPublish->publish(humidityEvent.relative_humidity))
+    if (!humidityPublish->publish(humidity))
       DEBUG_PRINTLN(F("Failed to publish humidity"));
     else
       DEBUG_PRINTLN(F("Humidity published!"));
   }
+
+  if (!isnan(pressure))
+  {
+    if (!pressurePublish->publish(pressure))
+      DEBUG_PRINTLN(F("Failed to publish pressure"));
+    else
+      DEBUG_PRINTLN(F("Pressure published!"));
+  }
+}
+
+float convertToFahrenheight(float celcius)
+{
+  float fahrenheit = celcius * 1.8 + 32;
+  return round(fahrenheit * 10) / 10.0;
 }
 
