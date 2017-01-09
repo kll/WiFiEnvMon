@@ -1,3 +1,5 @@
+#include <elapsedMillis.h>
+
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
 #include <ArduinoJson.h>          // https://github.com/bblanchon/ArduinoJson
 
@@ -21,10 +23,6 @@
 
 #include "Config.h"
 
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-Adafruit_BME280 bme;
-Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT);
-
 // default values that are overwritten if there are different values in config.json
 String mqtt_username = "YOUR_USERNAME";
 String mqtt_key = "YOUR_API_KEY";
@@ -32,17 +30,15 @@ String sensor_name = "UNIQUE_NAME_FOR_SENSOR";
 String mqtt_server = "io.adafruit.com";
 uint16_t mqtt_port = 1883;
 
-String celciusFeed;
-String fahrenheitFeed;
-String humidityFeed;
-String pressureFeed;
-String airQualityFeed;
-String lightFeed;
-
 // flag for saving data
 bool shouldSaveConfig = false;
 
-unsigned long lastUpdate;
+// IO objects
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
+Adafruit_BME280 bme;
+Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT);
+
+// sensor values
 float temperature;
 float pressure;
 float humidity;
@@ -59,6 +55,16 @@ Adafruit_MQTT_Publish* humidityPublish;
 Adafruit_MQTT_Publish* pressurePublish;
 Adafruit_MQTT_Publish* airQualityPublish;
 Adafruit_MQTT_Publish* lightPublish;
+String celciusFeed;
+String fahrenheitFeed;
+String humidityFeed;
+String pressureFeed;
+String airQualityFeed;
+String lightFeed;
+
+// timers
+elapsedMillis sinceSense;
+elapsedMillis sincePublish;
 
 void saveConfigCallback()
 {
@@ -93,18 +99,19 @@ void setup()
 
 void loop()
 {
-  if ((millis() - lastUpdate) < INTERVAL)
+  if (sinceSense >= SENSE_INTERVAL)
   {
-    return;
+    sinceSense -= SENSE_INTERVAL;
+    readSensors();
+    updateDisplay();
   }
 
-  lastUpdate = millis();
-
-  readSensors();
-  updateDisplay();
-
-  MQTT_connect();
-  publishData();
+  if (sincePublish >= PUBLISH_INTERVAL)
+  {
+    sincePublish -= PUBLISH_INTERVAL;
+    MQTT_connect();
+    publishData();
+  }
 }
 
 void MQTT_connect()
@@ -317,8 +324,6 @@ void readSensors()
 void readAirQuality()
 {
   airQuality = analogRead(MICSPIN);
-  DEBUG_PRINT(F("Air Quality: "));
-  DEBUG_PRINTLN(airQuality);
 }
 
 void readHumidity()
@@ -345,16 +350,6 @@ void readPressure()
 void readLight()
 {
   tsl.getEvent(&lightEvent);
-
-  DEBUG_PRINT(F("Light lux: "));
-  if (lightEvent.light)
-  {
-    DEBUG_PRINTLN(lightEvent.light);
-  }
-  else
-  {
-    DEBUG_PRINTLN(F("ERROR"));
-  }
 }
 
 void updateDisplay()
@@ -435,12 +430,23 @@ void publishData()
 {
   if (!isnan(temperature))
   {
-    if (!celciusPublish->publish(temperature))
+    if (celciusPublish->publish(temperature))
+    {
+      DEBUG_PRINT(F("Published celcius of "));
+      DEBUG_PRINTLN(temperature);
+    }
+    else
     {
       DEBUG_PRINTLN(F("Failed to publish celcius"));
     }
 
-    if (!fahrenheitPublish->publish(convertToFahrenheight(temperature)))
+    float fahrenheight = convertToFahrenheight(temperature);
+    if (fahrenheitPublish->publish(fahrenheight))
+    {
+      DEBUG_PRINT(F("Published fahrenheit of "));
+      DEBUG_PRINTLN(fahrenheight);
+    }
+    else
     {
       DEBUG_PRINTLN(F("Failed to publish fahrenheit"));
     }
@@ -448,7 +454,12 @@ void publishData()
 
   if (!isnan(humidity))
   {
-    if (!humidityPublish->publish(humidity))
+    if (humidityPublish->publish(humidity))
+    {
+      DEBUG_PRINT(F("Published humidity of "));
+      DEBUG_PRINTLN(humidity);
+    }
+    else
     {
       DEBUG_PRINTLN(F("Failed to publish humidity"));
     }
@@ -456,7 +467,12 @@ void publishData()
 
   if (!isnan(pressure))
   {
-    if (!pressurePublish->publish(pressure))
+    if (pressurePublish->publish(pressure))
+    {
+      DEBUG_PRINT(F("Published pressure of "));
+      DEBUG_PRINTLN(pressure);
+    }
+    else 
     {
       DEBUG_PRINTLN(F("Failed to publish pressure"));
     }
@@ -464,7 +480,12 @@ void publishData()
 
   if (!isnan(airQuality))
   {
-    if (!airQualityPublish->publish(airQuality))
+    if (airQualityPublish->publish(airQuality))
+    {
+      DEBUG_PRINT(F("Published air quality of "));
+      DEBUG_PRINTLN(airQuality);
+    }
+    else
     {
       DEBUG_PRINTLN(F("Failed to publish air quality"));
     }
@@ -472,7 +493,12 @@ void publishData()
 
   if (!isnan(lightEvent.light))
   {
-    if (!lightPublish->publish(lightEvent.light))
+    if (lightPublish->publish(lightEvent.light))
+    {
+      DEBUG_PRINT(F("Published light of "));
+      DEBUG_PRINTLN(lightEvent.light);
+    }
+    else 
     {
       DEBUG_PRINTLN(F("Failed to publish light"));
     }

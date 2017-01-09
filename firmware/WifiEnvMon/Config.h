@@ -4,7 +4,8 @@
 #define BMEOFFSET -1.5
 #define MICSPIN A0
 
-#define INTERVAL  10000
+#define SENSE_INTERVAL    500
+#define PUBLISH_INTERVAL  60000
 
 #define DEBUGP //enable/disable serial debug output
 
