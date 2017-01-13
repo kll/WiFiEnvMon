@@ -14,6 +14,7 @@
 #include <ESP8266WebServer.h>     // Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
+#include <Adafruit_ADS1015.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <Adafruit_TSL2561_U.h>
@@ -37,13 +38,15 @@ bool shouldSaveConfig = false;
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
 Adafruit_BME280 bme;
 Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT);
+Adafruit_ADS1115 ads;
 
 // sensor values
 float temperature;
 float pressure;
 float humidity;
-int airQuality;
 sensors_event_t lightEvent;
+uint16_t airQuality;
+uint16_t noise;
 
 // for mqtt library
 void MQTT_connect();
@@ -80,6 +83,7 @@ void setup()
   #endif
 
   u8g2.begin();
+  ads.begin();
 
   if (!bme.begin(0x76))
   {
@@ -317,13 +321,40 @@ void readSensors()
   readHumidity();
   readTemperature();
   readPressure();
-  readAirQuality();
   readLight();
+  readAirQuality();
+  readNoise();
 }
 
 void readAirQuality()
 {
-  airQuality = analogRead(MICSPIN);
+  airQuality = ads.readADC_SingleEnded(0);
+}
+
+void readNoise()
+{
+  elapsedMillis sinceStart;
+  uint16_t sample = 0;
+  uint16_t signalMax = 0;
+  uint16_t signalMin = 32787; // Only really getting 15-bit resolution since we are not measuring negative voltages.
+  int samples = 0;
+  while (sinceStart < NOISE_SAMPLE_WINDOW)
+  {
+    sample = ads.readADC_SingleEnded(1);
+
+    if (sample > signalMax)
+    {
+      signalMax = sample;  // save just the max levels
+    }
+    else if (sample < signalMin)
+    {
+      signalMin = sample;  // save just the min levels
+    }
+
+    samples++;
+  }
+  
+  noise = signalMax - signalMin;  // max - min = peak-peak amplitude
 }
 
 void readHumidity()
@@ -396,17 +427,6 @@ void updateDisplay()
   }
 
   u8g2.setCursor(0, 40);
-  u8g2.print("AQ: ");
-  if (isnan(airQuality))
-  {
-    u8g2.print("ERROR");
-  }
-  else
-  {
-    u8g2.print(airQuality);
-  }
-
-  u8g2.setCursor(0, 50);
   u8g2.print("LT: ");
   if (isnan(lightEvent.light))
   {
@@ -418,10 +438,32 @@ void updateDisplay()
     u8g2.print(" lux");
   }
 
-  u8g2.setCursor(0, 64);
+  u8g2.setCursor(0, 50);
+  u8g2.print("AQ: ");
+  if (isnan(airQuality))
+  {
+    u8g2.print("ERROR");
+  }
+  else
+  {
+    u8g2.print(airQuality);
+  }
+
+  u8g2.setCursor(0, 60);
+  u8g2.print("NS: ");
+  if (isnan(noise))
+  {
+    u8g2.print("ERROR");
+  }
+  else
+  {
+    u8g2.print(noise);
+  }
+
+  /*u8g2.setCursor(0, 64);
   u8g2.print(sensor_name);
   u8g2.print(" ");
-  u8g2.print(WiFi.localIP());
+  u8g2.print(WiFi.localIP());*/
   
   u8g2.sendBuffer();
 }
