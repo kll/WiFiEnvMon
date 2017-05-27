@@ -1,0 +1,82 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+ADC_ADDR	main.py	/^ADC_ADDR = 0x48$/;"	kind:variable	line:10
+BME280	bme280.py	/^class BME280:$/;"	kind:class	line:53
+BME280_I2CADDR	bme280.py	/^BME280_I2CADDR = 0x76$/;"	kind:variable	line:40
+BME280_OSAMPLE_1	bme280.py	/^BME280_OSAMPLE_1 = 1$/;"	kind:variable	line:43
+BME280_OSAMPLE_16	bme280.py	/^BME280_OSAMPLE_16 = 5$/;"	kind:variable	line:47
+BME280_OSAMPLE_2	bme280.py	/^BME280_OSAMPLE_2 = 2$/;"	kind:variable	line:44
+BME280_OSAMPLE_4	bme280.py	/^BME280_OSAMPLE_4 = 3$/;"	kind:variable	line:45
+BME280_OSAMPLE_8	bme280.py	/^BME280_OSAMPLE_8 = 4$/;"	kind:variable	line:46
+BME280_REGISTER_CONTROL	bme280.py	/^BME280_REGISTER_CONTROL = 0xF4$/;"	kind:variable	line:50
+BME280_REGISTER_CONTROL_HUM	bme280.py	/^BME280_REGISTER_CONTROL_HUM = 0xF2$/;"	kind:variable	line:49
+DISPLAY_HEIGHT	main.py	/^DISPLAY_HEIGHT = 64$/;"	kind:variable	line:12
+DISPLAY_WIDTH	main.py	/^DISPLAY_WIDTH = 128$/;"	kind:variable	line:11
+I2C_FREQ	main.py	/^I2C_FREQ = 100000$/;"	kind:variable	line:9
+SCL_PIN	main.py	/^SCL_PIN = 5$/;"	kind:variable	line:7
+SDA_PIN	main.py	/^SDA_PIN = 4$/;"	kind:variable	line:8
+TSL2561	tsl2561.py	/^class TSL2561:$/;"	kind:class	line:33
+TSL2561CL	tsl2561.py	/^TSL2561CL = TSL2561$/;"	kind:variable	line:190
+TSL2561CS	tsl2561.py	/^class TSL2561CS(TSL2561):$/;"	kind:class	line:193
+TSL2561FN	tsl2561.py	/^TSL2561FN = TSL2561$/;"	kind:variable	line:189
+TSL2561T	tsl2561.py	/^TSL2561T = TSL2561$/;"	kind:variable	line:188
+_CLEAR_BIT	tsl2561.py	/^_CLEAR_BIT = const(0x40)$/;"	kind:variable	line:7
+_COMMAND_BIT	tsl2561.py	/^_COMMAND_BIT = const(0x80)$/;"	kind:variable	line:5
+_CONTROL_POWEROFF	tsl2561.py	/^_CONTROL_POWEROFF = const(0x00)$/;"	kind:variable	line:19
+_CONTROL_POWERON	tsl2561.py	/^_CONTROL_POWERON = const(0x03)$/;"	kind:variable	line:18
+_INTEGRATION_TIME	tsl2561.py	/^_INTEGRATION_TIME = {$/;"	kind:variable	line:24
+_INTERRUPT_LEVEL	tsl2561.py	/^_INTERRUPT_LEVEL = const(0x10)$/;"	kind:variable	line:22
+_INTERRUPT_NONE	tsl2561.py	/^_INTERRUPT_NONE = const(0x00)$/;"	kind:variable	line:21
+_LUX_SCALE	tsl2561.py	/^    _LUX_SCALE = ($/;"	kind:variable	line:195
+_LUX_SCALE	tsl2561.py	/^    _LUX_SCALE = ($/;"	kind:variable	line:34
+_REGISTER_CHANNEL0	tsl2561.py	/^_REGISTER_CHANNEL0 = const(0x0C)$/;"	kind:variable	line:15
+_REGISTER_CHANNEL1	tsl2561.py	/^_REGISTER_CHANNEL1 = const(0x0E)$/;"	kind:variable	line:16
+_REGISTER_CONTROL	tsl2561.py	/^_REGISTER_CONTROL = const(0x00)$/;"	kind:variable	line:9
+_REGISTER_ID	tsl2561.py	/^_REGISTER_ID = const(0x0A)$/;"	kind:variable	line:14
+_REGISTER_INTERRUPT	tsl2561.py	/^_REGISTER_INTERRUPT = const(0x06)$/;"	kind:variable	line:13
+_REGISTER_THRESHHOLD_MAX	tsl2561.py	/^_REGISTER_THRESHHOLD_MAX = const(0x04)$/;"	kind:variable	line:12
+_REGISTER_THRESHHOLD_MIN	tsl2561.py	/^_REGISTER_THRESHHOLD_MIN = const(0x02)$/;"	kind:variable	line:11
+_REGISTER_TIMING	tsl2561.py	/^_REGISTER_TIMING = const(0x01)$/;"	kind:variable	line:10
+_WORD_BIT	tsl2561.py	/^_WORD_BIT = const(0x20)$/;"	kind:variable	line:6
+__init__	bme280.py	/^    def __init__(self,$/;"	kind:member	line:55
+__init__	tsl2561.py	/^    def __init__(self, i2c, address=0x39):$/;"	kind:member	line:45
+_lux	tsl2561.py	/^    def _lux(self, channels):$/;"	kind:member	line:118
+_read	tsl2561.py	/^    def _read(self):$/;"	kind:member	line:107
+_register16	tsl2561.py	/^    def _register16(self, register, value=None):$/;"	kind:member	line:56
+_register8	tsl2561.py	/^    def _register8(self, register, value=None):$/;"	kind:member	line:64
+_update_gain_and_time	tsl2561.py	/^    def _update_gain_and_time(self):$/;"	kind:member	line:96
+active	tsl2561.py	/^    def active(self, value=None):$/;"	kind:member	line:71
+ads1x15	main.py	/^import ads1x15$/;"	kind:namespace	line:3
+array	bme280.py	/^from array import array$/;"	kind:namespace	line:37
+bme280	main.py	/^import bme280$/;"	kind:namespace	line:4
+bme280.py	bme280.py	1;"	kind:file	line:1
+boot.py	boot.py	1;"	kind:file	line:1
+do_connect	boot.py	/^def do_connect():$/;"	kind:function	line:10
+gain	tsl2561.py	/^    def gain(self, value=None):$/;"	kind:member	line:80
+gc	boot.py	/^import gc$/;"	kind:namespace	line:4
+init	main.py	/^def init():$/;"	kind:function	line:28
+integration_time	tsl2561.py	/^    def integration_time(self, value=None):$/;"	kind:member	line:88
+interrupt	tsl2561.py	/^    def interrupt(self, value):$/;"	kind:member	line:180
+machine	main.py	/^import machine$/;"	kind:namespace	line:1
+main	main.py	/^def main():$/;"	kind:function	line:14
+main.py	main.py	1;"	kind:file	line:1
+network	boot.py	/^    import network$/;"	kind:namespace	line:11
+read	tsl2561.py	/^    def read(self, autogain=False, raw=False):$/;"	kind:member	line:138
+read_compensated_data	bme280.py	/^    def read_compensated_data(self, result=None):$/;"	kind:member	line:135
+read_raw_data	bme280.py	/^    def read_raw_data(self, result):$/;"	kind:member	line:99
+sensor_id	tsl2561.py	/^    def sensor_id(self):$/;"	kind:member	line:104
+ssd1306	main.py	/^import ssd1306$/;"	kind:namespace	line:2
+threshold	tsl2561.py	/^    def threshold(self, cycles=None, min_value=None, max_value=None):$/;"	kind:member	line:156
+time	bme280.py	/^import time$/;"	kind:namespace	line:35
+time	tsl2561.py	/^import time$/;"	kind:namespace	line:1
+tsl2561	main.py	/^import tsl2561$/;"	kind:namespace	line:5
+tsl2561.py	tsl2561.py	1;"	kind:file	line:1
+unpack	bme280.py	/^from ustruct import unpack, unpack_from$/;"	kind:namespace	line:36
+unpack_from	bme280.py	/^from ustruct import unpack, unpack_from$/;"	kind:namespace	line:36
+ustruct	tsl2561.py	/^import ustruct$/;"	kind:namespace	line:2
+values	bme280.py	/^    def values(self):$/;"	kind:member	line:194
+webrepl	boot.py	/^import webrepl$/;"	kind:namespace	line:5
